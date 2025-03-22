@@ -65,6 +65,9 @@ func handlerRegister(s *state, cmd command) error {
 }
 
 func handlerUsers(s *state, cmd command) error {
+	if len(cmd.Arguments) != 0 {
+		return fmt.Errorf("no arguments allowed for command: users")
+	}
 	users, err := s.db.GetUsers(context.Background())
 	if err != nil {
 		return err
