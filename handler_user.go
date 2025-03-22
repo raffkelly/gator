@@ -64,18 +64,6 @@ func handlerRegister(s *state, cmd command) error {
 	return nil
 }
 
-func handlerReset(s *state, cmd command) error {
-	if len(cmd.Arguments) > 0 {
-		return fmt.Errorf("invalid arguments for 'reset' command")
-	}
-	err := s.db.DeleteUsers(context.Background())
-	if err != nil {
-		return err
-	}
-	fmt.Println("users table reset")
-	return nil
-}
-
 func handlerUsers(s *state, cmd command) error {
 	users, err := s.db.GetUsers(context.Background())
 	if err != nil {
