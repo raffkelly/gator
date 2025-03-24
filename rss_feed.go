@@ -2,12 +2,17 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/xml"
-	"fmt"
 	"html"
 	"io"
+	"log"
 	"net/http"
+	"strings"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/raffkelly/gator/internal/database"
 )
 
 type RSSFeed struct {
@@ -71,9 +76,30 @@ func scrapeFeeds(s *state) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println("Titles:")
+	var postParams database.CreatePostParams
 	for _, item := range feedData.Channel.Item {
-		fmt.Printf("%v\n", item.Title)
+		postParams = database.CreatePostParams{
+			ID:        uuid.New(),
+			CreatedAt: time.Now(),
+			UpdatedAt: time.Now(),
+			Title:     item.Title,
+			Url:       item.Link,
+			Description: sql.NullString{
+				String: item.Description,
+				Valid:  item.Description != "",
+			},
+			PublishedAt: convertPubDate(item.PubDate),
+			FeedID:      nextFeed.ID,
+		}
+		_, err := s.db.CreatePost(context.Background(), postParams)
+		if err != nil {
+			if strings.Contains(err.Error(), "duplicate key value violates unique constraint") {
+				continue
+			}
+			log.Printf("could not create post: %v\n", err)
+			continue
+		}
 	}
+	log.Printf("Feed %s collected, %v posts found", feedData.Channel.Title, len(feedData.Channel.Item))
 	return nil
 }
