@@ -9,15 +9,11 @@ import (
 	"github.com/raffkelly/gator/internal/database"
 )
 
-func handlerAddfeed(s *state, cmd command) error {
+func handlerAddfeed(s *state, cmd command, user database.User) error {
 	if len(cmd.Arguments) != 2 {
 		return fmt.Errorf(`usage: addfeed "name" "url"`)
 	}
-	currentUser, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return err
-	}
-	currentUserId := currentUser.ID
+	currentUserId := user.ID
 	feedTitle := cmd.Arguments[0]
 	feedUrl := cmd.Arguments[1]
 
@@ -71,13 +67,9 @@ func handlerFeeds(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollow(s *state, cmd command) error {
+func handlerFollow(s *state, cmd command, user database.User) error {
 	if len(cmd.Arguments) != 1 {
 		return fmt.Errorf("usage: follow <url>")
-	}
-	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return err
 	}
 	userID := user.ID
 	feed, err := s.db.GetFeedFromURL(context.Background(), cmd.Arguments[0])
@@ -101,20 +93,16 @@ func handlerFollow(s *state, cmd command) error {
 	return nil
 }
 
-func handlerFollowing(s *state, cmd command) error {
+func handlerFollowing(s *state, cmd command, user database.User) error {
 	if len(cmd.Arguments) > 0 {
 		return fmt.Errorf("no arguments allowed for 'following' command")
-	}
-	user, err := s.db.GetUser(context.Background(), s.cfg.CurrentUserName)
-	if err != nil {
-		return err
 	}
 	followedFeeds, err := s.db.GetFeedFollowsForUser(context.Background(), user.ID)
 	if err != nil {
 		return err
 	}
 	if len(followedFeeds) < 1 {
-		fmt.Printf("No followed feeds for user: %v", s.cfg.CurrentUserName)
+		fmt.Printf("No followed feeds for user: %v\n", s.cfg.CurrentUserName)
 		return nil
 	}
 
@@ -122,5 +110,21 @@ func handlerFollowing(s *state, cmd command) error {
 	for _, feed := range followedFeeds {
 		fmt.Println(feed.FeedName)
 	}
+	return nil
+}
+
+func handlerUnfollow(s *state, cmd command, user database.User) error {
+	if len(cmd.Arguments) != 1 {
+		return fmt.Errorf("usage: unfollow <url>")
+	}
+	deleteParams := database.DeleteFeedFollowParams{
+		Name: user.Name,
+		Url:  cmd.Arguments[0],
+	}
+	err := s.db.DeleteFeedFollow(context.Background(), deleteParams)
+	if err != nil {
+		return err
+	}
+	fmt.Println("Feed successfully unfollowed.")
 	return nil
 }
